@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
 
-const App = () => {
+// ========== PAGE DE LOGIN ==========
+const LoginPage = ({ onLoginSuccess }) => {
   const [wallets, setWallets] = useState([]);
   const [did, setDid] = useState('');
   const [quorum, setQuorum] = useState(2);
@@ -17,14 +18,13 @@ const App = () => {
     setLoading(true);
     setError('');
     try {
-      // Génération de vrais wallets Ethereum avec ethers.js
       const generatedWallets = Array.from({ length: 3 }, (_, i) => {
         const wallet = ethers.Wallet.createRandom();
         return {
           id: `key${i + 1}`,
           address: wallet.address,
           privateKey: wallet.privateKey,
-          wallet: wallet // Garder l'objet wallet pour signer plus tard
+          wallet: wallet
         };
       });
       
@@ -101,28 +101,16 @@ const App = () => {
     setError('');
     
     try {
-      // Signature réelle avec ethers.js
       const signatures = await Promise.all(
         wallets.slice(0, quorum).map(async (w) => {
-          try {
-            // Créer le wallet à partir de la clé privée
-            const wallet = new ethers.Wallet(w.privateKey);
-            
-            // Signer le message (challenge)
-            const signature = await wallet.signMessage(challenge);
-            
-            return {
-              keyId: w.id,
-              signature: signature
-            };
-          } catch (err) {
-            console.error(`Erreur signature ${w.id}:`, err);
-            throw err;
-          }
+          const wallet = new ethers.Wallet(w.privateKey);
+          const signature = await wallet.signMessage(challenge);
+          return {
+            keyId: w.id,
+            signature: signature
+          };
         })
       );
-
-      console.log('Signatures générées:', signatures);
 
       const response = await fetch(`${API_URL}/auth/verify`, {
         method: 'POST',
@@ -137,7 +125,10 @@ const App = () => {
       
       if (response.ok && data.authenticated) {
         setMessage(`🎉 Authentifié! ${data.message}`);
-        setStep('authenticated');
+        // Redirection vers le dashboard après 1 seconde
+        setTimeout(() => {
+          onLoginSuccess({ did, wallets });
+        }, 1000);
       } else {
         setError(data.reason || 'Authentification échouée');
       }
@@ -147,14 +138,6 @@ const App = () => {
     setLoading(false);
   };
 
-  const reset = () => {
-    setStep('setup');
-    setWallets([]);
-    setChallenge('');
-    setMessage('');
-    setError('');
-  };
-
   const exportWallets = () => {
     const dataStr = JSON.stringify(wallets.map(w => ({
       id: w.id,
@@ -162,12 +145,9 @@ const App = () => {
       privateKey: w.privateKey
     })), null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = 'wallets-backup.json';
-    
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.setAttribute('download', 'wallets-backup.json');
     linkElement.click();
   };
 
@@ -184,20 +164,18 @@ const App = () => {
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
           padding: '2rem'
         }}>
-          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
             <div>
               <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-                DID Authentication
+                Connexion Sécurisée
               </h1>
-              <p style={{ color: '#6b7280', margin: 0 }}>Multi-signature blockchain identity avec ethers.js</p>
+              <p style={{ color: '#6b7280', margin: 0 }}>Authentification décentralisée DID</p>
             </div>
           </div>
 
-          {/* Messages */}
           {message && (
             <div style={{
               marginBottom: '1.5rem',
@@ -235,18 +213,14 @@ const App = () => {
             </div>
           )}
 
-          {/* Step 1: Setup */}
           {step === 'setup' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                  </svg>
-                  Étape 1: Génération des wallets Ethereum
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+                  Étape 1: Génération des wallets
                 </h2>
                 <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
-                  Générez 3 wallets Ethereum réels avec ethers.js pour votre identité décentralisée.
+                  Générez 3 wallets Ethereum pour votre identité décentralisée.
                 </p>
                 <button
                   onClick={generateWallets}
@@ -270,19 +244,15 @@ const App = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontWeight: '600', color: '#374151', margin: 0 }}>Wallets générés:</h3>
-                    <button
-                      onClick={exportWallets}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        background: '#6b7280',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '0.375rem',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        fontWeight: '500'
-                      }}
-                    >
+                    <button onClick={exportWallets} style={{
+                      padding: '0.5rem 1rem',
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}>
                       💾 Exporter
                     </button>
                   </div>
@@ -294,42 +264,16 @@ const App = () => {
                       borderRadius: '0.5rem',
                       border: '1px solid #e5e7eb'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2">
-                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-                          <line x1="1" y1="10" x2="23" y2="10"/>
-                        </svg>
-                        <span style={{ fontFamily: 'monospace', fontSize: '0.875rem', fontWeight: '600' }}>{wallet.id}</span>
-                      </div>
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '600' }}>Address:</span>
-                        <p style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#1f2937', margin: '0.25rem 0 0 0', wordBreak: 'break-all' }}>
-                          {wallet.address}
-                        </p>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '600' }}>Private Key:</span>
-                        <p style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#dc2626', margin: '0.25rem 0 0 0', wordBreak: 'break-all' }}>
-                          {wallet.privateKey}
-                        </p>
-                      </div>
+                      <span style={{ fontFamily: 'monospace', fontSize: '0.875rem', fontWeight: '600' }}>{wallet.id}</span>
+                      <p style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#6b7280', margin: '0.5rem 0 0 0', wordBreak: 'break-all' }}>
+                        {wallet.address}
+                      </p>
                     </div>
                   ))}
 
-                  <div style={{
-                    padding: '1rem',
-                    background: '#fef3c7',
-                    border: '1px solid #fbbf24',
-                    borderRadius: '0.5rem'
-                  }}>
-                    <p style={{ fontSize: '0.875rem', color: '#78350f', margin: 0 }}>
-                      ⚠️ <strong>Important:</strong> Sauvegardez vos clés privées en lieu sûr! Ne les partagez jamais.
-                    </p>
-                  </div>
-
                   <div style={{ paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#374151' }}>
-                      Quorum requis (signatures nécessaires):
+                      Quorum requis:
                     </label>
                     <input
                       type="number"
@@ -345,9 +289,6 @@ const App = () => {
                         fontSize: '1rem'
                       }}
                     />
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                      {quorum} signature(s) sur 3 seront nécessaires pour s'authentifier
-                    </p>
                   </div>
 
                   <button
@@ -364,36 +305,56 @@ const App = () => {
                       fontWeight: '500'
                     }}
                   >
-                    Continuer vers l'enregistrement
+                    Continuer
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Step 2: Register */}
           {step === 'register' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
-                  Étape 2: Enregistrement du DID
-                </h2>
-                <div style={{
-                  padding: '1rem',
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  borderRadius: '0.5rem',
-                  marginBottom: '1rem'
-                }}>
-                  <p style={{ fontFamily: 'monospace', fontSize: '0.875rem', wordBreak: 'break-all', margin: 0 }}>
-                    {did}
-                  </p>
-                </div>
-                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
-                  Enregistrez votre identité décentralisée avec vos {wallets.length} clés publiques Ethereum.
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+                Étape 2: Enregistrement
+              </h2>
+              <div style={{
+                padding: '1rem',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem'
+              }}>
+                <p style={{ fontFamily: 'monospace', fontSize: '0.875rem', wordBreak: 'break-all', margin: 0 }}>
+                  {did}
                 </p>
+              </div>
+              <button
+                onClick={registerDID}
+                disabled={loading}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: loading ? '#9ca3af' : '#4f46e5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '500'
+                }}
+              >
+                {loading ? 'Enregistrement...' : 'Enregistrer le DID'}
+              </button>
+            </div>
+          )}
+
+          {step === 'login' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+                Étape 3: Authentification
+              </h2>
+              {!challenge ? (
                 <button
-                  onClick={registerDID}
+                  onClick={requestChallenge}
                   disabled={loading}
                   style={{
                     padding: '0.75rem 1.5rem',
@@ -406,141 +367,283 @@ const App = () => {
                     fontWeight: '500'
                   }}
                 >
-                  {loading ? 'Enregistrement...' : 'Enregistrer le DID'}
+                  {loading ? 'Demande...' : 'Demander un challenge'}
                 </button>
-              </div>
+              ) : (
+                <>
+                  <div style={{
+                    padding: '1rem',
+                    background: '#fefce8',
+                    border: '1px solid #fde047',
+                    borderRadius: '0.5rem'
+                  }}>
+                    <p style={{ fontSize: '0.75rem', fontFamily: 'monospace', wordBreak: 'break-all', margin: 0 }}>
+                      {challenge}
+                    </p>
+                  </div>
+                  <button
+                    onClick={signAndVerify}
+                    disabled={loading}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: loading ? '#9ca3af' : '#16a34a',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      fontSize: '1rem',
+                      fontWeight: '500'
+                    }}
+                  >
+                    {loading ? 'Signature...' : 'Se connecter'}
+                  </button>
+                </>
+              )}
             </div>
           )}
-
-          {/* Step 3: Login */}
-          {step === 'login' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
-                  Étape 3: Authentification avec signatures cryptographiques
-                </h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {!challenge ? (
-                    <button
-                      onClick={requestChallenge}
-                      disabled={loading}
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        background: loading ? '#9ca3af' : '#4f46e5',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '0.5rem',
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        fontSize: '1rem',
-                        fontWeight: '500'
-                      }}
-                    >
-                      {loading ? 'Demande...' : 'Demander un challenge'}
-                    </button>
-                  ) : (
-                    <>
-                      <div style={{
-                        padding: '1rem',
-                        background: '#fefce8',
-                        border: '1px solid #fde047',
-                        borderRadius: '0.5rem'
-                      }}>
-                        <p style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>
-                          Challenge à signer avec ethers.js:
-                        </p>
-                        <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-all', margin: 0 }}>
-                          {challenge}
-                        </p>
-                      </div>
-                      <button
-                        onClick={signAndVerify}
-                        disabled={loading}
-                        style={{
-                          padding: '0.75rem 1.5rem',
-                          background: loading ? '#9ca3af' : '#16a34a',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '0.5rem',
-                          cursor: loading ? 'not-allowed' : 'pointer',
-                          fontSize: '1rem',
-                          fontWeight: '500'
-                        }}
-                      >
-                        {loading ? 'Signature en cours...' : `Signer avec ${quorum} clé(s) et vérifier`}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Authenticated */}
-          {step === 'authenticated' && (
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center' }}>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '5rem',
-                height: '5rem',
-                background: '#dcfce7',
-                borderRadius: '50%',
-                marginBottom: '1rem'
-              }}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-              </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-                Authentification réussie!
-              </h2>
-              <p style={{ color: '#6b7280', margin: 0 }}>
-                Votre identité décentralisée a été vérifiée avec des signatures cryptographiques Ethereum.
-              </p>
-              <button
-                onClick={reset}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#4f46e5',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: '500'
-                }}
-              >
-                Recommencer
-              </button>
-            </div>
-          )}
-
-          {/* Info Box */}
-          <div style={{
-            marginTop: '2rem',
-            padding: '1rem',
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: '0.5rem'
-          }}>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" style={{ flexShrink: 0, marginTop: '0.125rem' }}>
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-              <div style={{ fontSize: '0.875rem', color: '#166534' }}>
-                <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>✅ ethers.js intégré!</p>
-                <p style={{ margin: 0 }}>
-                  Cette application utilise maintenant de vraies signatures cryptographiques Ethereum. Les wallets sont générés de manière sécurisée et les signatures sont vérifiées côté serveur.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
+  );
+};
+
+// ========== DASHBOARD MÉDICAL ==========
+const MedicalDashboard = ({ user, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+
+  const stats = [
+    { label: 'Consultations', value: '24', icon: '📋', color: '#3b82f6' },
+    { label: 'Patients', value: '156', icon: '👥', color: '#10b981' },
+    { label: 'Ordonnances', value: '89', icon: '💊', color: '#f59e0b' },
+    { label: 'Alertes', value: '3', icon: '⚠️', color: '#ef4444' }
+  ];
+
+  const recentPatients = [
+    { name: 'Marie Dupont', age: 45, lastVisit: '2024-12-05', status: 'stable' },
+    { name: 'Jean Martin', age: 62, lastVisit: '2024-12-04', status: 'suivi' },
+    { name: 'Sophie Laurent', age: 34, lastVisit: '2024-12-03', status: 'stable' }
+  ];
+
+  const appointments = [
+    { time: '09:00', patient: 'Paul Bernard', type: 'Consultation' },
+    { time: '10:30', patient: 'Claire Dubois', type: 'Suivi' },
+    { time: '14:00', patient: 'Marc Petit', type: 'Urgence' }
+  ];
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f3f4f6' }}>
+      {/* Header */}
+      <header style={{
+        background: 'white',
+        borderBottom: '1px solid #e5e7eb',
+        padding: '1rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
+            Dashboard Médical
+          </h1>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '0.875rem', fontWeight: '600', margin: 0 }}>Dr. Utilisateur</p>
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0, fontFamily: 'monospace' }}>
+              {user.did.substring(0, 20)}...
+            </p>
+          </div>
+          <button
+            onClick={onLogout}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500'
+            }}
+          >
+            Déconnexion
+          </button>
+        </div>
+      </header>
+
+      {/* Navigation */}
+      <nav style={{
+        background: 'white',
+        borderBottom: '1px solid #e5e7eb',
+        padding: '0 2rem'
+      }}>
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          {['overview', 'patients', 'calendar', 'reports'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '1rem 0',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === tab ? '2px solid #4f46e5' : '2px solid transparent',
+                color: activeTab === tab ? '#4f46e5' : '#6b7280',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                textTransform: 'capitalize'
+              }}
+            >
+              {tab === 'overview' ? 'Vue d\'ensemble' : 
+               tab === 'patients' ? 'Patients' :
+               tab === 'calendar' ? 'Agenda' : 'Rapports'}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main style={{ padding: '2rem' }}>
+        {/* Stats Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '1.5rem',
+          marginBottom: '2rem'
+        }}>
+          {stats.map((stat, i) => (
+            <div key={i} style={{
+              background: 'white',
+              padding: '1.5rem',
+              borderRadius: '0.75rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem'
+            }}>
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '0.5rem',
+                background: stat.color + '20',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem'
+              }}>
+                {stat.icon}
+              </div>
+              <div>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{stat.label}</p>
+                <p style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
+                  {stat.value}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+          {/* Recent Patients */}
+          <div style={{
+            background: 'white',
+            padding: '1.5rem',
+            borderRadius: '0.75rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+              Patients Récents
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {recentPatients.map((patient, i) => (
+                <div key={i} style={{
+                  padding: '1rem',
+                  background: '#f9fafb',
+                  borderRadius: '0.5rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <p style={{ fontWeight: '600', margin: 0 }}>{patient.name}</p>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+                      {patient.age} ans • Dernière visite: {patient.lastVisit}
+                    </p>
+                  </div>
+                  <span style={{
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    background: patient.status === 'stable' ? '#dcfce7' : '#fef3c7',
+                    color: patient.status === 'stable' ? '#166534' : '#78350f'
+                  }}>
+                    {patient.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Today's Appointments */}
+          <div style={{
+            background: 'white',
+            padding: '1.5rem',
+            borderRadius: '0.75rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+              Rendez-vous du jour
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {appointments.map((apt, i) => (
+                <div key={i} style={{
+                  padding: '1rem',
+                  background: '#f9fafb',
+                  borderRadius: '0.5rem',
+                  borderLeft: '3px solid #4f46e5'
+                }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4f46e5', margin: 0 }}>
+                    {apt.time}
+                  </p>
+                  <p style={{ fontWeight: '600', margin: '0.25rem 0' }}>{apt.patient}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>{apt.type}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+// ========== APPLICATION PRINCIPALE ==========
+const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  return (
+    <>
+      {!isAuthenticated ? (
+        <LoginPage onLoginSuccess={handleLoginSuccess} />
+      ) : (
+        <MedicalDashboard user={user} onLogout={handleLogout} />
+      )}
+    </>
   );
 };
 
