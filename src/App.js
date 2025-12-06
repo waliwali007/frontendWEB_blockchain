@@ -151,6 +151,43 @@ const LoginPage = ({ onLoginSuccess }) => {
     linkElement.click();
   };
 
+  const importWallets = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target.result);
+        
+        // Valider le format
+        if (!Array.isArray(importedData) || importedData.length !== 3) {
+          setError('Format de fichier invalide. 3 wallets requis.');
+          return;
+        }
+
+        // Recréer les objets wallet avec ethers.js
+        const recreatedWallets = importedData.map(w => {
+          const wallet = new ethers.Wallet(w.privateKey);
+          return {
+            id: w.id,
+            address: w.address,
+            privateKey: w.privateKey,
+            wallet: wallet
+          };
+        });
+
+        setWallets(recreatedWallets);
+        setDid(`did:eth:${recreatedWallets[0].address}`);
+        setMessage('✅ Wallets importés avec succès!');
+        setError('');
+      } catch (err) {
+        setError('Erreur lors de l\'import: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -220,30 +257,74 @@ const LoginPage = ({ onLoginSuccess }) => {
                   Étape 1: Génération des wallets
                 </h2>
                 <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
-                  Générez 3 wallets Ethereum pour votre identité décentralisée.
+                  Générez 3 nouveaux wallets Ethereum ou importez des wallets existants.
                 </p>
-                <button
-                  onClick={generateWallets}
-                  disabled={loading}
-                  style={{
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={generateWallets}
+                    disabled={loading}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: loading ? '#9ca3af' : '#4f46e5',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      fontSize: '1rem',
+                      fontWeight: '500'
+                    }}
+                  >
+                    {loading ? 'Génération...' : '🔑 Générer les wallets'}
+                  </button>
+                  
+                  <label style={{
                     padding: '0.75rem 1.5rem',
-                    background: loading ? '#9ca3af' : '#4f46e5',
+                    background: '#10b981',
                     color: 'white',
-                    border: 'none',
                     borderRadius: '0.5rem',
-                    cursor: loading ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                     fontSize: '1rem',
-                    fontWeight: '500'
-                  }}
-                >
-                  {loading ? 'Génération...' : 'Générer les wallets'}
-                </button>
+                    fontWeight: '500',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    📂 Importer des wallets
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={importWallets}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
               </div>
 
               {wallets.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ 
+                    padding: '1rem', 
+                    background: '#dbeafe', 
+                    border: '1px solid #3b82f6',
+                    borderRadius: '0.5rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                      <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e40af' }}>
+                        Wallets chargés
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.875rem', color: '#1e40af', margin: 0 }}>
+                      Vos wallets sont maintenant prêts à être utilisés. N'oubliez pas de les exporter pour les sauvegarder !
+                    </p>
+                  </div>
+                  
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ fontWeight: '600', color: '#374151', margin: 0 }}>Wallets générés:</h3>
+                    <h3 style={{ fontWeight: '600', color: '#374151', margin: 0 }}>Wallets:</h3>
                     <button onClick={exportWallets} style={{
                       padding: '0.5rem 1rem',
                       background: '#6b7280',
