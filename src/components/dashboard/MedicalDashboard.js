@@ -1,8 +1,6 @@
-// src/components/Dashboard/MedicalDashboard.jsx
 import React, { useState } from 'react';
 
 const MedicalDashboard = ({ user, onLogout }) => {
-  // CORRIGÉ : on garde bien le setter pour que les onglets soient interactifs
   const [activeTab, setActiveTab] = useState('overview');
 
   const stats = [
@@ -52,9 +50,12 @@ const MedicalDashboard = ({ user, onLogout }) => {
               color: '#6b7280', 
               margin: 0, 
               fontFamily: 'monospace',
-              wordBreak: 'break-all'
+              maxWidth: '200px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
             }}>
-              {user?.did ? `${user.did.substring(0, 20)}...` : 'DID non chargé'}
+              {user?.did ? `${user.did.substring(0, 20)}...` : 'did:eth:0x1590C7F805...'}
             </p>
           </div>
           <button
@@ -138,10 +139,36 @@ const MedicalDashboard = ({ user, onLogout }) => {
                 background: stat.color + '20',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.8rem'
+                justifyContent: 'center'
               }}>
-                {stat.icon}
+                {/* Icons rendered as SVG */}
+                {stat.icon === 'Clipboard' && (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={stat.color} strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                )}
+                {stat.icon === 'People' && (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={stat.color} strokeWidth="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                )}
+                {stat.icon === 'Pill' && (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={stat.color} strokeWidth="2">
+                    <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path>
+                    <path d="m8.5 8.5 7 7"></path>
+                  </svg>
+                )}
+                {stat.icon === 'Warning' && (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={stat.color} strokeWidth="2">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                )}
               </div>
               <div>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{stat.label}</p>
